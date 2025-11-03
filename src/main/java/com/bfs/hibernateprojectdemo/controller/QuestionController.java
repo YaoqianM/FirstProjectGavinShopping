@@ -63,7 +63,7 @@ public class QuestionController {
 
         DataResponse body = DataResponse.builder()
                 .message("Success")
-                .build();;
+                .build();
 
         return ResponseEntity
                 .status(200)
