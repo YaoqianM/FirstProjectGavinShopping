@@ -14,6 +14,7 @@ public class Product {
     private String description;
     private double retailPrice;
     private int quantity;
+    private double wholesalePrice;
 
     // Getters
     public Long getId() {
@@ -35,7 +36,8 @@ public class Product {
     public int getQuantity() {
         return quantity;
     }
-
+    public double getWholesalePrice() { return wholesalePrice; }
+    public void setWholesalePrice(double wholesalePrice) { this.wholesalePrice = wholesalePrice; }
     // Setters
     public void setName(String name) {
         this.name = name;

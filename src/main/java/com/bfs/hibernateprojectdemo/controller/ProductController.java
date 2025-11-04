@@ -3,6 +3,7 @@ package com.bfs.hibernateprojectdemo.controller;
 
 import com.bfs.hibernateprojectdemo.domain.Product;
 import com.bfs.hibernateprojectdemo.service.HomePageService;
+import com.bfs.hibernateprojectdemo.service.ProductAnalyticsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,28 +37,26 @@ public class ProductController {
         // admin create product
         return "Product created";
     }
+    @Autowired
+    private ProductAnalyticsService productAnalyticsService;
 
     @GetMapping("/frequent/{n}")
-    public String topFrequent(@PathVariable int n) {
-        // user top-N most frequently purchased
-        return "Top frequent";
+    public List<Product> getTopFrequent(@PathVariable int n) {
+        return productAnalyticsService.getTopFrequent(n);
     }
 
     @GetMapping("/recent/{n}")
-    public String topRecent(@PathVariable int n) {
-        // user top-N most recent
-        return "Top recent";
+    public List<Product> getTopRecent(@PathVariable int n) {
+        return productAnalyticsService.getTopRecent(n);
     }
 
     @GetMapping("/profit/{n}")
-    public String topProfit(@PathVariable int n) {
-        // admin top-N most profitable
-        return "Top profit";
+    public List<Product> getTopProfit(@PathVariable int n) {
+        return productAnalyticsService.getTopProfit(n);
     }
 
     @GetMapping("/popular/{n}")
-    public String topPopular(@PathVariable int n) {
-        // admin top-N by units sold
-        return "Top popular";
+    public List<Product> getTopPopular(@PathVariable int n) {
+        return productAnalyticsService.getTopPopular(n);
     }
 }
