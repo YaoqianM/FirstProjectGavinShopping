@@ -1,10 +1,15 @@
 package com.bfs.hibernateprojectdemo.controller;
 
+import com.bfs.hibernateprojectdemo.domain.Order;
+import com.bfs.hibernateprojectdemo.service.HomePageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
+    @Autowired
+    private HomePageService homePageService;
 
     @PostMapping
     public String placeOrder() {
@@ -19,9 +24,9 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public String getOrderById(@PathVariable Long id) {
+    public Order getOrderById(@PathVariable Long id) {
         // user/admin order detail
-        return "Order detail";
+        return homePageService.getOrderDetail(id);
     }
 
     @PatchMapping("/{id}/cancel")

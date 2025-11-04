@@ -1,22 +1,28 @@
 package com.bfs.hibernateprojectdemo.controller;
 
 
+import com.bfs.hibernateprojectdemo.domain.Product;
+import com.bfs.hibernateprojectdemo.service.HomePageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/products")
 public class ProductController {
+    @Autowired
+    private HomePageService homePageService;
 
     @GetMapping("/all")
-    public String getAllProducts() {
-        // user: hide OOS; admin: include OOS
-        return "All products";
+    public List<Product> getAllProducts(@RequestParam(defaultValue = "false") boolean admin) {
+        return homePageService.getAvailableProducts(admin);
     }
 
     @GetMapping("/{id}")
-    public String getProductById(@PathVariable Long id) {
-        // user detail (hide quantity)
-        return "Product detail";
+    public Product getProductDetail(@PathVariable Long id,
+                                    @RequestParam(defaultValue = "false") boolean admin) {
+        return homePageService.getProductDetail(id, admin);
     }
 
     @PatchMapping("/{id}")
