@@ -10,10 +10,12 @@ import javax.persistence.*;
 @Entity
 @Table(name = "users")
 public class User {
+
+
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter
     @Setter
-    @Id
     private Long id;
     @JsonProperty("username")
     @Column(name = "username", unique = true)

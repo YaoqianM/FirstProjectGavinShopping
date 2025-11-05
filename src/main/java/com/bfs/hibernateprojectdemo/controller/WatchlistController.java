@@ -37,6 +37,7 @@ import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.hibernate.query.Query;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -63,17 +64,51 @@ public class WatchlistController {
         }
     }
 
-    @PostMapping("/product/{productId}")
-    public ResponseEntity<Void> addToWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
-        try (Session s = sessionFactory.openSession()) {
-            Transaction tx = s.beginTransaction();
-            Watchlist w = new Watchlist(); w.setUserId(user.getId()); w.setProductId(id);
-            s.save(w); tx.commit();
-            return ResponseEntity.status(201).build();
-        }
+//    @PostMapping("/product/{id}")
+//    public ResponseEntity<Void> addToWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
+//        try (Session s = sessionFactory.openSession()) {
+//            Transaction tx = s.beginTransaction();
+//            Watchlist w = new Watchlist(); w.setUserId(user.getId()); w.setProductId(id);
+//            s.save(w); tx.commit();
+//            return ResponseEntity.status(201).build();
+//        }
+//    }
+//    @PostMapping("/product/{id}")
+//    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") int id,
+//                                               @AuthenticationPrincipal User user) {
+//        Session session = sessionFactory.getCurrentSession();
+//        Product product = session.get(Product.class, id);
+//        if (product == null) return ResponseEntity.notFound().build();
+//
+//        Watchlist watchlist = new Watchlist();
+//        watchlist.setUserId(user.getId());
+//        watchlist.setProductId(product.getProductId());
+//        session.persist(watchlist);
+//        return ResponseEntity.ok().build();
+//    }
+
+    @PostMapping("/product/{id}")
+    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") int id,
+                                               @AuthenticationPrincipal org.springframework.security.core.userdetails.User userDetails) {
+        Session session = sessionFactory.getCurrentSession();
+        Product product = session.get(Product.class, id);
+        if (product == null) return ResponseEntity.notFound().build();
+
+        // fetch user entity from DB using username
+        Query<User> query = session.createQuery("from User u where u.username = :username", User.class);
+        query.setParameter("username", userDetails.getUsername());
+        User dbUser = query.uniqueResult();
+        if (dbUser == null) return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+
+        Watchlist watchlist = new Watchlist();
+        watchlist.setUserId(dbUser.getId());
+        watchlist.setProductId(product.getProductId());
+        session.persist(watchlist);
+
+        return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping("/product/{productId}")
+    @DeleteMapping("/product/{id}")
     public ResponseEntity<Void> removeFromWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();

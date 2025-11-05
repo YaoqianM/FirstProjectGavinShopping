@@ -4,10 +4,10 @@ import com.bfs.hibernateprojectdemo.domain.User;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 
@@ -16,6 +16,9 @@ import javax.transaction.Transactional;
 public class RegisterService {
     @Autowired
     private SessionFactory sessionFactory;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Transactional
     public User registerUser(User user) {
         try (Session session = sessionFactory.openSession()) {
@@ -32,7 +35,7 @@ public class RegisterService {
                 tx.rollback();
                 return null;
             }
-
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
             session.persist(user);
             tx.commit();
             return user;
