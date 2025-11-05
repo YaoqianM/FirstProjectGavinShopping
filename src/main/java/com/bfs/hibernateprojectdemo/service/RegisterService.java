@@ -36,7 +36,9 @@ public class RegisterService {
             }
             user.setUsername(user.getUsername().trim());
             user.setEmail(user.getEmail().trim());
-            user.setPassword(BCrypt.hashpw(user.getPassword(), BCrypt.gensalt()));
+            user.setPassword(org.springframework.security.crypto.bcrypt.BCrypt.hashpw(
+                    user.getPassword(), org.springframework.security.crypto.bcrypt.BCrypt.gensalt()));
+
 
             session.save(user);
             tx.commit();

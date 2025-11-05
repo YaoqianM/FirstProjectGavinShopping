@@ -46,4 +46,11 @@ public class UserControllder {
         String token = JwtUtil.generate(db.getUsername(), db.getRole());
         return ResponseEntity.ok("{\"token\":\"" + token + "\"}");
     }
+
+//    @PostMapping("/login")
+//    public ResponseEntity<String> login(@RequestBody User user) {
+//        boolean ok = loginService.authenticate(user);
+//        if (!ok) return ResponseEntity.status(401).body("Incorrect credentials, please try again.");
+//        return ResponseEntity.ok("Login successful");
+//    }
 }

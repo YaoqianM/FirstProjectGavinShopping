@@ -13,7 +13,7 @@ public class LoginService {
     @Autowired
     private SessionFactory sessionFactory;
 
-    public User authenticate(User user) {
+    public boolean authenticate(User user) {
         if (user == null || user.getUsername() == null || user.getPassword() == null) {
             throw new InvalidCredentialsException();
         }
@@ -21,10 +21,12 @@ public class LoginService {
             User db = s.createQuery("from User u where u.username = :username", User.class)
                     .setParameter("username", user.getUsername().trim())
                     .uniqueResult();
-            if (db == null || !BCrypt.checkpw(user.getPassword(), db.getPassword())) {
-                throw new InvalidCredentialsException();
-            }
-            return db; // return user; token/JWT can be added later
+//            if (db == null || !BCrypt.checkpw(user.getPassword(), db.getPassword())) {
+//                throw new InvalidCredentialsException();
+//            }
+//            return db; // return user; token/JWT can be added later
+            return db != null && org.springframework.security.crypto.bcrypt.BCrypt.checkpw(user.getPassword(), db.getPassword());
+
         }
     }
 
