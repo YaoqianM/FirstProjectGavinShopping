@@ -1,13 +1,14 @@
 package com.bfs.hibernateprojectdemo.service;
 
 import com.bfs.hibernateprojectdemo.domain.User;
+import com.bfs.hibernateprojectdemo.exception.DuplicateUserException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 
@@ -18,27 +19,28 @@ public class RegisterService {
     private SessionFactory sessionFactory;
     @Transactional
     public User registerUser(User user) {
+        if (user == null || user.getUsername() == null || user.getEmail() == null || user.getPassword() == null) {
+            throw new IllegalArgumentException("username, email, password required");
+        }
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
-            String hql =
-                    "from User u where u.username = :username or u.Email = :Email";
-            Query<User> query = session.createQuery(hql, User.class);
-            query.setParameter("username", user.getUserName());
-            query.setParameter("Email", user.getEmail());
+            Long dupCount = session.createQuery(
+                            "select count(u) from User u where u.username = :username or u.Email = :Email", Long.class)
+                    .setParameter("username", user.getUsername().trim())
+                    .setParameter("Email", user.getEmail().trim())
+                    .uniqueResult();
 
-            User existingUser = query.uniqueResult();
-
-            if (existingUser != null) {
+            if (dupCount != null && dupCount > 0) {
                 tx.rollback();
-                return null;
+                throw new DuplicateUserException("Username or email already exists");
             }
+            user.setUsername(user.getUsername().trim());
+            user.setEmail(user.getEmail().trim());
+            user.setPassword(BCrypt.hashpw(user.getPassword(), BCrypt.gensalt()));
 
-            session.persist(user);
+            session.save(user);
             tx.commit();
             return user;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
         }
     }
     @Transactional
@@ -53,7 +55,7 @@ public class RegisterService {
             User existingAdmin = query.uniqueResult();
             if (existingAdmin == null) {
                 User admin = new User();
-                admin.setUserName("admin");
+                admin.setUsername("admin");
                 admin.setPassword("123");
                 session.persist(admin);
             }

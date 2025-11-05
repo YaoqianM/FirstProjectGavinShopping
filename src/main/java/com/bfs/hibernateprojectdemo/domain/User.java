@@ -16,7 +16,9 @@ public class User {
     @Id
     private Long id;
     @JsonProperty("username")
-    @Column(name = "username", unique = true)
+    @Setter
+    @Getter
+    @Column(name = "username", unique = true, nullable = false)
     private String username;
 
     @Setter
@@ -27,13 +29,11 @@ public class User {
 
     @Setter
     @Getter
+    @Column(nullable = false)
     private String password;
 
-    public String getUserName() {
-        return username;
-    }
-
-    public void setUserName(String username) {
-        this.username = username;
-    }
+    @Setter
+    @Getter
+    @Column(name = "role", nullable = false)
+    private String role = "USER"; // or "ADMIN"
 }

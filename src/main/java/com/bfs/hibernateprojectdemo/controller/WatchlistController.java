@@ -55,29 +55,36 @@ public class WatchlistController {
     public ResponseEntity<List<Product>> getWatchlist(@AuthenticationPrincipal User user) {
         try (Session s = sessionFactory.openSession()) {
             Query<Product> q = s.createQuery("""
-          select p from Product p
-          where p.id in (select w.productId from Watchlist w where w.userId = :uid)
-          """, Product.class);
+                select p from Product p
+                where p.id in (select w.productId from Watchlist w where w.userId = :uid)
+                and p.quantity > 0
+            """, Product.class);
             q.setParameter("uid", user.getId());
             return ResponseEntity.ok(q.list());
         }
     }
 
-    @PostMapping("/product/{productId}")
+    @PostMapping("/product/{id}")
     public ResponseEntity<Void> addToWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
-            Watchlist w = new Watchlist(); w.setUserId(user.getId()); w.setProductId(id);
-            s.save(w); tx.commit();
+            Long exists = s.createQuery(
+                            "select count(w) from Watchlist w where w.userId=:uid and w.productId=:pid", Long.class)
+                    .setParameter("uid", user.getId()).setParameter("pid", id).uniqueResult();
+            if (exists == null || exists == 0) {
+                Watchlist w = new Watchlist(); w.setUserId(user.getId()); w.setProductId(id);
+                s.save(w);
+            }
+            tx.commit();
             return ResponseEntity.status(201).build();
         }
     }
 
-    @DeleteMapping("/product/{productId}")
+    @DeleteMapping("/product/{id}")
     public ResponseEntity<Void> removeFromWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
-            s.createQuery("delete from Watchlist where userId=:uid and productId=:pid")
+            s.createQuery("delete from Watchlist w where w.userId=:uid and w.productId=:pid")
                     .setParameter("uid", user.getId()).setParameter("pid", id).executeUpdate();
             tx.commit();
             return ResponseEntity.noContent().build();

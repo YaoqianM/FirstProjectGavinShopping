@@ -21,6 +21,9 @@ public class ProductController {
 
     @Autowired
     private HomePageService homePageService;
+    @Autowired
+    private ProductAnalyticsService productAnalyticsService;
+
     public ProductController(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
     }
@@ -30,26 +33,10 @@ public class ProductController {
         return homePageService.getAvailableProducts(admin);
     }
 
-    @GetMapping("/{productId}")
-    public Product getProductDetail(@PathVariable Long productId,
+    @GetMapping("/{id}")
+    public Product getProductDetail(@PathVariable Long id,
                                     @RequestParam(defaultValue = "false") boolean admin) {
-        return homePageService.getProductDetail(productId, admin);
-    }
-
-    @PatchMapping("/{productId}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long productId, @RequestBody Product changes) {
-        try (Session s = sessionFactory.openSession()) {
-            Transaction tx = s.beginTransaction();
-            Product p = s.get(Product.class, productId);
-            if (p == null) return ResponseEntity.notFound().build();
-            if (changes.getName() != null) p.setName(changes.getName());
-            if (changes.getDescription() != null) p.setDescription(changes.getDescription());
-            if (changes.getRetailPrice() > 0) p.setRetailPrice(changes.getRetailPrice());
-            if (changes.getWholesalePrice() > 0) p.setWholesalePrice(changes.getWholesalePrice());
-            if (changes.getQuantity() >= 0) p.setQuantity(changes.getQuantity());
-            s.update(p); tx.commit();
-            return ResponseEntity.ok(p);
-        }
+        return homePageService.getProductDetail(id, admin);
     }
 
     @PostMapping
@@ -61,8 +48,22 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.CREATED).body(p);
         }
     }
-    @Autowired
-    private ProductAnalyticsService productAnalyticsService;
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product changes) {
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+            Product p = s.get(Product.class, id);
+            if (p == null) return ResponseEntity.notFound().build();
+            if (changes.getName() != null) p.setName(changes.getName());
+            if (changes.getDescription() != null) p.setDescription(changes.getDescription());
+            if (changes.getRetailPrice() > 0) p.setRetailPrice(changes.getRetailPrice());
+            if (changes.getWholesalePrice() > 0) p.setWholesalePrice(changes.getWholesalePrice());
+            if (changes.getQuantity() >= 0) p.setQuantity(changes.getQuantity());
+            s.update(p); tx.commit();
+            return ResponseEntity.ok(p);
+        }
+    }
 
     @GetMapping("/frequent/{n}")
     public List<Product> getTopFrequent(@PathVariable int n) {

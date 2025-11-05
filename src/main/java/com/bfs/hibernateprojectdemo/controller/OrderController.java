@@ -3,6 +3,7 @@ package com.bfs.hibernateprojectdemo.controller;
 import com.bfs.hibernateprojectdemo.domain.Order;
 import com.bfs.hibernateprojectdemo.domain.Product;
 import com.bfs.hibernateprojectdemo.domain.User;
+import com.bfs.hibernateprojectdemo.exception.NotEnoughInventoryException;
 import com.bfs.hibernateprojectdemo.service.HomePageService;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -20,26 +21,43 @@ import java.util.List;
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
-    static class OrderItem { public Long productId; public int quantity; }
-    static class OrderRequest { public List<OrderItem> order; }
+    static class OrderItem {
+        public Long productId;
+        public int quantity;
+    }
+    static class OrderRequest {
+        public List<OrderItem> order;
+    }
+
     private final SessionFactory sessionFactory;
+
+    @Autowired
+    private HomePageService homePageService;
 
     public OrderController(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
     }
-    @Autowired
-    private HomePageService homePageService;
+
 
     @PostMapping
-    public ResponseEntity<Void> placeOrder(@RequestBody OrderRequest req,
+    public ResponseEntity<?> placeOrder(@RequestBody OrderRequest req,
                                            @AuthenticationPrincipal User current) {
+
+        if (current == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login required");
+        if (req == null || req.order == null || req.order.isEmpty())
+            return ResponseEntity.badRequest().body("Order list is empty");
+
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
             for (OrderItem item : req.order) {
                 Product p = s.get(Product.class, item.productId);
                 if (p == null || p.getQuantity() < item.quantity) {
                     tx.rollback();
-                    return ResponseEntity.badRequest().build();
+                    return ResponseEntity.badRequest().body("Product not found: " + item.productId);
+                }
+                if (p.getQuantity() < item.quantity) {
+                    tx.rollback();
+                    throw new NotEnoughInventoryException("Not enough stock for product " + item.productId);
                 }
                 p.setQuantity(p.getQuantity() - item.quantity);
 
@@ -111,8 +129,17 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/complete")
-    public String completeOrder(@PathVariable Long id) {
-        // complete processing order
-        return "Order completed";
+    public ResponseEntity<?> completeOrder(@PathVariable Long id) {
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+            Order o = s.get(Order.class, id);
+            if (o == null) { tx.rollback(); return ResponseEntity.status(404).body("Order not found"); }
+            switch (o.getStatus()) {
+                case "Canceled":  tx.rollback(); return ResponseEntity.badRequest().body("Canceled order cannot be completed");
+                case "Completed": tx.rollback(); return ResponseEntity.badRequest().body("Order already completed");
+                case "Processing": o.setStatus("Completed"); s.update(o); tx.commit(); return ResponseEntity.ok(o);
+                default: tx.rollback(); return ResponseEntity.badRequest().body("Invalid order status");
+            }
+        }
     }
 }

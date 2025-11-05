@@ -1,17 +1,19 @@
 package com.bfs.hibernateprojectdemo.controller;
 
 import com.bfs.hibernateprojectdemo.domain.User;
+import com.bfs.hibernateprojectdemo.security.JwtUtil;
 import com.bfs.hibernateprojectdemo.service.LoginService;
 import com.bfs.hibernateprojectdemo.service.RegisterService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-
+@Validated
 public class UserControllder {
 
 
@@ -25,19 +27,23 @@ public class UserControllder {
     }
     @PostMapping("/signup")
     public ResponseEntity<User> registerUser(@RequestBody User user) {
-        if (user == null || user.getEmail() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        User savedUser = registerService.registerUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+        User u = new User();
+        u.setUsername(user.getUsername());  // mapped to DB column userName by @Column(name="userName")
+        u.setEmail(user.getEmail());
+        u.setPassword(user.getPassword());  // RegisterService will hash it
+        User saved = registerService.registerUser(u);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
-        // login logic here
-        boolean successful = loginService.authenticate(user);
-        if (!successful) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials");
+        if (user == null || user.getUsername() == null || user.getPassword() == null) {
+            return ResponseEntity.badRequest().body("username and password required");
         }
-        return ResponseEntity.ok("Login successful");
+        User db = loginService.findByUsername(user.getUsername());
+        if (db == null || !loginService.verifyPassword(db, user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials, please try again.");
+        }
+        String token = JwtUtil.generate(db.getUsername(), db.getRole());
+        return ResponseEntity.ok("{\"token\":\"" + token + "\"}");
     }
 }
