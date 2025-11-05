@@ -14,9 +14,9 @@ public class LoginService {
 
     public boolean authenticate(User user) {
         try (Session session = sessionFactory.openSession()) {
-            String hql = "from User u where u.userName = :userName and u.password = :password";
+            String hql = "from User u where u.username = :username and u.password = :password";
             Query<User> query = session.createQuery(hql, User.class);
-            query.setParameter("userName", user.getUserName());
+            query.setParameter("username", user.getUserName());
             query.setParameter("password", user.getPassword());
             User foundUser = query.uniqueResult();
             return foundUser != null;

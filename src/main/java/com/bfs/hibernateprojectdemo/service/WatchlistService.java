@@ -1,7 +1,7 @@
 package com.bfs.hibernateprojectdemo.service;
 
 import com.bfs.hibernateprojectdemo.domain.Product;
-import com.bfs.hibernateprojectdemo.domain.WatchList;
+import com.bfs.hibernateprojectdemo.domain.Watchlist;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
@@ -16,7 +16,7 @@ public class WatchlistService {
     @Autowired
     private SessionFactory sessionFactory;
 
-    public boolean addToWatchList(Long userId, Long productId) {
+    public boolean addToWatchlist(Long userId, Long productId) {
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
 
@@ -26,7 +26,7 @@ public class WatchlistService {
                 throw new IllegalArgumentException("Product not found: " + productId);
             }
 
-            WatchList entry = new WatchList();
+            Watchlist entry = new Watchlist();
             entry.setUserId(userId);
             entry.setProductId(productId);
 
@@ -39,17 +39,17 @@ public class WatchlistService {
         }
     }
 
-    // Remove product from user's watchlist
-    public boolean removeFromWatchList(Long userId, Long productId) {
+    // Remove product from user's Watchlist
+    public boolean removeFromWatchlist(Long userId, Long productId) {
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
 
-            String hql = "FROM WatchList w WHERE w.userId = :userId AND w.productId = :productId";
-            Query<WatchList> query = session.createQuery(hql, WatchList.class);
+            String hql = "FROM Watchlist w WHERE w.userId = :userId AND w.productId = :productId";
+            Query<Watchlist> query = session.createQuery(hql, Watchlist.class);
             query.setParameter("userId", userId);
             query.setParameter("productId", productId);
 
-            WatchList entry = query.uniqueResult();
+            Watchlist entry = query.uniqueResult();
             if (entry != null) {
                 session.remove(entry);
                 tx.commit();
@@ -64,13 +64,13 @@ public class WatchlistService {
         }
     }
 
-    // View all in-stock products in user's watchlist
-    public List<Product> getInStockWatchList(Long userId) {
+    // View all in-stock products in user's Watchlist
+    public List<Product> getInStockWatchlist(Long userId) {
         try (Session session = sessionFactory.openSession()) {
             String hql = """
                 SELECT p FROM Product p
                 WHERE p.id IN (
-                    SELECT w.productId FROM WatchList w WHERE w.userId = :userId
+                    SELECT w.productId FROM Watchlist w WHERE w.userId = :userId
                 )
                 AND p.quantity > 0
                 """;

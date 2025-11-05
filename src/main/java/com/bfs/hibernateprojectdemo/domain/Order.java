@@ -1,5 +1,8 @@
 package com.bfs.hibernateprojectdemo.domain;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
@@ -11,25 +14,21 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Getters and setters
+    @Setter
+    @Getter
     private Long userId;
+    @Setter
+    @Getter
     private Long productId;
+    @Getter
+    @Setter
     private int quantity;
+    @Setter
+    @Getter
     private String status;
+    @Setter
+    @Getter
     private LocalDateTime orderTime;
 
-    // Getters and setters
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-
-    public Long getProductId() { return productId; }
-    public void setProductId(Long productId) { this.productId = productId; }
-
-    public int getQuantity() { return quantity; }
-    public void setQuantity(int quantity) { this.quantity = quantity; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public LocalDateTime getOrderTime() { return orderTime; }
-    public void setOrderTime(LocalDateTime orderTime) { this.orderTime = orderTime; }
 }

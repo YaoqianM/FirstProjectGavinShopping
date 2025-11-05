@@ -21,9 +21,9 @@ public class RegisterService {
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
             String hql =
-                    "from User u where u.userName = :userName or u.Email = :Email";
+                    "from User u where u.username = :username or u.Email = :Email";
             Query<User> query = session.createQuery(hql, User.class);
-            query.setParameter("userName", user.getUserName());
+            query.setParameter("username", user.getUserName());
             query.setParameter("Email", user.getEmail());
 
             User existingUser = query.uniqueResult();
@@ -39,6 +39,26 @@ public class RegisterService {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        }
+    }
+    @Transactional
+    public void initAdminUser() {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
+
+            String hql = "from User u where u.username = :username";
+            Query<User> query = session.createQuery(hql, User.class);
+            query.setParameter("username", "admin");
+
+            User existingAdmin = query.uniqueResult();
+            if (existingAdmin == null) {
+                User admin = new User();
+                admin.setUserName("admin");
+                admin.setPassword("123");
+                session.persist(admin);
+            }
+
+            tx.commit();
         }
     }
 }

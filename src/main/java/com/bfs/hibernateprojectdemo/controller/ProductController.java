@@ -4,16 +4,26 @@ package com.bfs.hibernateprojectdemo.controller;
 import com.bfs.hibernateprojectdemo.domain.Product;
 import com.bfs.hibernateprojectdemo.service.HomePageService;
 import com.bfs.hibernateprojectdemo.service.ProductAnalyticsService;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;   // add this import
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/products")
 public class ProductController {
+    private final SessionFactory sessionFactory;
+
     @Autowired
     private HomePageService homePageService;
+    public ProductController(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
 
     @GetMapping("/all")
     public List<Product> getAllProducts(@RequestParam(defaultValue = "false") boolean admin) {
@@ -27,15 +37,29 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}")
-    public String updateProduct(@PathVariable Long id) {
-        // admin update name/desc/prices/quantity
-        return "Product updated";
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product changes) {
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+            Product p = s.get(Product.class, id);
+            if (p == null) return ResponseEntity.notFound().build();
+            if (changes.getName() != null) p.setName(changes.getName());
+            if (changes.getDescription() != null) p.setDescription(changes.getDescription());
+            if (changes.getRetailPrice() > 0) p.setRetailPrice(changes.getRetailPrice());
+            if (changes.getWholesalePrice() > 0) p.setWholesalePrice(changes.getWholesalePrice());
+            if (changes.getQuantity() >= 0) p.setQuantity(changes.getQuantity());
+            s.update(p); tx.commit();
+            return ResponseEntity.ok(p);
+        }
     }
 
     @PostMapping
-    public String createProduct() {
-        // admin create product
-        return "Product created";
+    public ResponseEntity<Product> createProduct(@RequestBody Product p) {
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+            s.save(p);
+            tx.commit();
+            return ResponseEntity.status(HttpStatus.CREATED).body(p);
+        }
     }
     @Autowired
     private ProductAnalyticsService productAnalyticsService;
