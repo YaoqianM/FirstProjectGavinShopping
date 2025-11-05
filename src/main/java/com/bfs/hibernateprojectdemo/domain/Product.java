@@ -10,6 +10,9 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long productId;
 
+    @Version
+    private Long version;
+
     // Fields
     private String name;
     private String description;
@@ -20,6 +23,10 @@ public class Product {
     // Getters
     public Long getProductId() {
         return productId;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 
     public String getName() {

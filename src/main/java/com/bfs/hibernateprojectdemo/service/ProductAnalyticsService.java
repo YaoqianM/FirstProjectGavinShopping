@@ -63,32 +63,30 @@ public class ProductAnalyticsService {
         }
     }
 
-    // Top-N most profitable (exclude canceled/ongoing)
+    // Top-N most profitable (exclude canceled/ongoing) using order snapshot prices
     public List<Product> getTopProfit(int n) {
         try (Session session = sessionFactory.openSession()) {
-            // Use native SQL for complex profit calculation
-            String sql = 
-                    "SELECT p.product_id FROM products p " +
-                    "JOIN orders o ON p.product_id = o.product_id " +
+            Query<Long> idQuery = session.createQuery(
+                    "SELECT o.productId FROM Order o " +
                     "WHERE o.status = 'Completed' " +
-                    "GROUP BY p.product_id " +
-                    "ORDER BY SUM((p.retail_price - p.wholesale_price) * o.quantity) DESC, p.product_id ASC " +
-                    "LIMIT ?";
+                    "GROUP BY o.productId " +
+                    "ORDER BY SUM( (o.retailPriceAtPurchase - o.wholesalePriceAtPurchase) * o.quantity ) DESC, o.productId ASC",
+                    Long.class);
+            idQuery.setMaxResults(n);
+            List<Long> productIds = idQuery.list();
             
-            @SuppressWarnings("unchecked")
-            List<Long> productIds = session.createNativeQuery(sql)
-                    .setParameter(1, n)
-                    .getResultList();
-            
-            if (productIds.isEmpty()) {
+            if (productIds == null || productIds.isEmpty()) {
                 return new java.util.ArrayList<>();
             }
             
-            // Fetch products by IDs
             Query<Product> productQuery = session.createQuery(
                     "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
             productQuery.setParameterList("ids", productIds);
-            return productQuery.list();
+            List<Product> products = productQuery.list();
+            return products != null ? products : new java.util.ArrayList<>();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new java.util.ArrayList<>();
         }
     }
 
@@ -104,7 +102,7 @@ public class ProductAnalyticsService {
             idQuery.setMaxResults(n);
             List<Long> productIds = idQuery.list();
             
-            if (productIds.isEmpty()) {
+            if (productIds == null || productIds.isEmpty()) {
                 return new java.util.ArrayList<>();
             }
             
@@ -112,7 +110,11 @@ public class ProductAnalyticsService {
             Query<Product> productQuery = session.createQuery(
                     "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
             productQuery.setParameterList("ids", productIds);
-            return productQuery.list();
+            List<Product> products = productQuery.list();
+            return products != null ? products : new java.util.ArrayList<>();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new java.util.ArrayList<>();
         }
     }
 }

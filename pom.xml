@@ -48,6 +48,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- JSON Patch / Merge Patch support -->
+        <dependency>
+            <groupId>com.github.fge</groupId>
+            <artifactId>json-patch</artifactId>
+            <version>1.9</version>
+        </dependency>
+
         <!--       DATABASE -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

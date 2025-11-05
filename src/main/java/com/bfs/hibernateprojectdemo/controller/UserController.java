@@ -47,7 +47,7 @@ public class UserController { // Fixed typo in class name
     public ResponseEntity<?> login(@RequestBody User user) {
         boolean successful = loginService.authenticate(user.getUserName(), user.getPassword());
         if (!successful) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials, please try again.");
         }
         
         // Generate JWT token
