@@ -58,36 +58,6 @@ public class OrderController {
         }
     }
 
-//    @PostMapping
-//    public ResponseEntity<Void> placeOrder(@RequestBody List<Order> orders,
-//                                           @AuthenticationPrincipal org.springframework.security.core.userdetails.User userDetails) {
-//        Transaction tx = null;
-//        try (Session session = sessionFactory.openSession()) {
-//            tx = session.beginTransaction();
-//
-//            Query<User> query = session.createQuery("from User u where u.username = :username", User.class);
-//            query.setParameter("username", userDetails.getUsername());
-//            User dbUser = query.uniqueResult();
-//            if (dbUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-//
-//            for (Order order : orders) {
-//                Product product = session.get(Product.class, order.getProductId());
-//                if (product == null) continue;
-//
-//                order.setUserId(dbUser.getId());
-//                order.setStatus("Processing");
-//                order.setOrderTime(LocalDateTime.now());
-//
-//                session.persist(order);
-//            }
-//
-//            tx.commit();
-//            return ResponseEntity.status(HttpStatus.CREATED).build();
-//        } catch (Exception e) {
-//            if (tx != null) tx.rollback();
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//        }
-//    }
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders(@RequestParam(defaultValue = "0") int page) {
         try (Session s = sessionFactory.openSession()) {
