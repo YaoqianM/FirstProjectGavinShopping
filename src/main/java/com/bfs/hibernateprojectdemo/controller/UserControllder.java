@@ -34,7 +34,9 @@ public class UserControllder {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
         // login logic here
-        boolean successful = loginService.authenticate(user);
+        boolean successful = loginService.authenticate(
+                user.getUserName(),   // or user.getUsername() depending on your field
+                user.getPassword());
         if (!successful) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials");
         }

@@ -53,70 +53,97 @@ public class WatchlistController {
         this.sessionFactory = sessionFactory;
     }
     @GetMapping("/products/all")
-    public ResponseEntity<List<Product>> getWatchlist(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<Product>> getWatchlist(
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User userDetails) {
+
+        if (userDetails == null) return ResponseEntity.status(401).build();
+        String uname = userDetails.getUsername();
         try (Session s = sessionFactory.openSession()) {
-            Query<Product> q = s.createQuery("""
-          select p from Product p
-          where p.id in (select w.productId from Watchlist w where w.userId = :uid)
-          """, Product.class);
-            q.setParameter("uid", user.getId());
+            User dbUser = s.createQuery("from User u where u.username = :un", User.class)
+                    .setParameter("un", userDetails.getUsername())
+                    .uniqueResult();
+            if (dbUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            Query<Product> q = s.createQuery(
+                    "select p from Product p where p.productId in (" +
+                            " select w.productId from Watchlist w where w.userId = :uid" +
+                            " ) and p.quantity > 0",
+                    Product.class);
+            q.setParameter("uid", dbUser.getId());
             return ResponseEntity.ok(q.list());
         }
     }
 
-//    @PostMapping("/product/{id}")
-//    public ResponseEntity<Void> addToWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
-//        try (Session s = sessionFactory.openSession()) {
-//            Transaction tx = s.beginTransaction();
-//            Watchlist w = new Watchlist(); w.setUserId(user.getId()); w.setProductId(id);
-//            s.save(w); tx.commit();
-//            return ResponseEntity.status(201).build();
-//        }
-//    }
-//    @PostMapping("/product/{id}")
-//    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") int id,
-//                                               @AuthenticationPrincipal User user) {
-//        Session session = sessionFactory.getCurrentSession();
-//        Product product = session.get(Product.class, id);
-//        if (product == null) return ResponseEntity.notFound().build();
-//
-//        Watchlist watchlist = new Watchlist();
-//        watchlist.setUserId(user.getId());
-//        watchlist.setProductId(product.getProductId());
-//        session.persist(watchlist);
-//        return ResponseEntity.ok().build();
-//    }
-
+    // Adds a product to the user’s watchlist
     @PostMapping("/product/{id}")
-    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") int id,
+    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") Long productId,
                                                @AuthenticationPrincipal org.springframework.security.core.userdetails.User userDetails) {
-        Session session = sessionFactory.getCurrentSession();
-        Product product = session.get(Product.class, id);
-        if (product == null) return ResponseEntity.notFound().build();
 
-        // fetch user entity from DB using username
-        Query<User> query = session.createQuery("from User u where u.username = :username", User.class);
-        query.setParameter("username", userDetails.getUsername());
-        User dbUser = query.uniqueResult();
-        if (dbUser == null) return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-
-        Watchlist watchlist = new Watchlist();
-        watchlist.setUserId(dbUser.getId());
-        watchlist.setProductId(product.getProductId());
-        session.persist(watchlist);
-
-        return ResponseEntity.ok().build();
-    }
-
-    @DeleteMapping("/product/{id}")
-    public ResponseEntity<Void> removeFromWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        if (userDetails == null) return ResponseEntity.status(401).build();
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
-            s.createQuery("delete from Watchlist where userId=:uid and productId=:pid")
-                    .setParameter("uid", user.getId()).setParameter("pid", id).executeUpdate();
+
+            User dbUser = s.createQuery("from User u where u.username = :un", User.class)
+                    .setParameter("un", userDetails.getUsername())
+                    .uniqueResult();
+            if (dbUser == null) {
+                tx.rollback();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Product product = s.get(Product.class, productId);
+            if (product == null) {
+                tx.rollback();
+                return ResponseEntity.notFound().build();
+            }
+
+            // Avoid duplicates
+            Watchlist existing = s.createQuery(
+                            "from Watchlist w where w.userId = :uid and w.productId = :pid",
+                            Watchlist.class)
+                    .setParameter("uid", dbUser.getId())
+                    .setParameter("pid", productId)
+                    .uniqueResult();
+            if (existing == null) {
+                Watchlist w = new Watchlist();
+                w.setUserId(dbUser.getId());
+                w.setProductId(productId);
+                s.persist(w);
+            }
+
             tx.commit();
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.status(HttpStatus.CREATED).build();
         }
     }
 
+    // Removes a product from the user’s watchlist
+    @DeleteMapping("/product/{id}")
+    public ResponseEntity<Void> removeFromWatchlist(@PathVariable("id") Long productId,
+                                                    @AuthenticationPrincipal org.springframework.security.core.userdetails.User userDetails) {
+
+        if (userDetails == null) return ResponseEntity.status(401).build();
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+
+            User dbUser = s.createQuery("from User u where u.username = :un", User.class)
+                    .setParameter("un", userDetails.getUsername())
+                    .uniqueResult();
+            if (dbUser == null) {
+                tx.rollback();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            int affected = s.createQuery(
+                            "delete from Watchlist where userId = :uid and productId = :pid")
+                    .setParameter("uid", dbUser.getId())
+                    .setParameter("pid", productId)
+                    .executeUpdate();
+
+            tx.commit();
+            return affected > 0 ? ResponseEntity.noContent().build() :
+                    ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+    }
 }
+

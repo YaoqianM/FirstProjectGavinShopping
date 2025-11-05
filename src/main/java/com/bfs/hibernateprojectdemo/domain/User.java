@@ -18,18 +18,23 @@ public class User {
     @Setter
     private Long id;
     @JsonProperty("username")
-    @Column(name = "username", unique = true)
+    @Column(name = "username", unique = true, nullable=false)
     private String username;
 
     @Setter
     @Getter
     @JsonProperty("email")
-    @Column(name = "Email", unique = true)
+    @Column(name = "Email", unique = true, nullable=false)
     private String Email;
 
     @Setter
     @Getter
     private String password;
+
+    @Setter
+    @Getter
+    @Column(nullable=false)
+    private String role = "USER";
 
     public String getUserName() {
         return username;
