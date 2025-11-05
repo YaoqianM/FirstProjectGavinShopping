@@ -63,7 +63,7 @@ public class WatchlistController {
         }
     }
 
-    @PostMapping("/product/{id}")
+    @PostMapping("/product/{productId}")
     public ResponseEntity<Void> addToWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -73,7 +73,7 @@ public class WatchlistController {
         }
     }
 
-    @DeleteMapping("/product/{id}")
+    @DeleteMapping("/product/{productId}")
     public ResponseEntity<Void> removeFromWatchlist(@AuthenticationPrincipal User user, @PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();

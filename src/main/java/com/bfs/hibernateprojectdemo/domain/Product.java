@@ -10,7 +10,7 @@ public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long productId;
 
     // Setters
     @Setter
@@ -25,8 +25,8 @@ public class Product {
     private double wholesalePrice;
 
     // Getters
-    public Long getId() {
-        return id;
+    public Long getProductId() {
+        return productId;
     }
 
     public String getName() {

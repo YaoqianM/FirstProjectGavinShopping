@@ -22,6 +22,7 @@ public class User {
 
     @Setter
     @Getter
+    @JsonProperty("email")
     @Column(name = "Email", unique = true)
     private String Email;
 

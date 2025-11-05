@@ -36,7 +36,7 @@ public class UserControllder {
         // login logic here
         boolean successful = loginService.authenticate(user);
         if (!successful) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect credentials");
         }
         return ResponseEntity.ok("Login successful");
     }

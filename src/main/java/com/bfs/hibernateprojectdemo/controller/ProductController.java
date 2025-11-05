@@ -30,17 +30,17 @@ public class ProductController {
         return homePageService.getAvailableProducts(admin);
     }
 
-    @GetMapping("/{id}")
-    public Product getProductDetail(@PathVariable Long id,
+    @GetMapping("/{productId}")
+    public Product getProductDetail(@PathVariable Long productId,
                                     @RequestParam(defaultValue = "false") boolean admin) {
-        return homePageService.getProductDetail(id, admin);
+        return homePageService.getProductDetail(productId, admin);
     }
 
-    @PatchMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product changes) {
+    @PatchMapping("/{productId}")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long productId, @RequestBody Product changes) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
-            Product p = s.get(Product.class, id);
+            Product p = s.get(Product.class, productId);
             if (p == null) return ResponseEntity.notFound().build();
             if (changes.getName() != null) p.setName(changes.getName());
             if (changes.getDescription() != null) p.setDescription(changes.getDescription());
