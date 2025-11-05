@@ -1,5 +1,6 @@
 package com.bfs.hibernateprojectdemo.config;
 
+import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +14,10 @@ import javax.sql.DataSource;
 import java.util.Properties;
 
 @Configuration
+@EnableTransactionManagement
 public class HibernateConfig {
 
-    HibernateProperty hibernateProperty;
+    private final HibernateProperty hibernateProperty;
 
     @Autowired
     public HibernateConfig(HibernateProperty hibernateProperty) {
@@ -26,6 +28,7 @@ public class HibernateConfig {
         Properties hibernateProperties = new Properties();
         hibernateProperties.setProperty("hibernate.show_sql", hibernateProperty.getShowsql());
         hibernateProperties.setProperty("hibernate.dialect", hibernateProperty.getDialect());
+        hibernateProperties.setProperty("hibernate.hbm2ddl.auto", hibernateProperty.getHbm2ddlAuto());
 
         return hibernateProperties;
     }
@@ -39,6 +42,13 @@ public class HibernateConfig {
         dataSource.setPassword(hibernateProperty.getPassword());
 
         return dataSource;
+    }
+
+    @Bean
+    public HibernateTransactionManager transactionManager(SessionFactory sessionFactory) {
+        HibernateTransactionManager txManager = new HibernateTransactionManager();
+        txManager.setSessionFactory(sessionFactory);
+        return txManager;
     }
 
     @Bean

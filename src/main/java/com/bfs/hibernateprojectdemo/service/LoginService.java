@@ -12,14 +12,14 @@ public class LoginService {
     @Autowired
     private SessionFactory sessionFactory;
 
-    public boolean authenticate(String userName, String password) {
+    public boolean authenticate(User user) {
         try (Session session = sessionFactory.openSession()) {
             String hql = "from User u where u.userName = :userName and u.password = :password";
             Query<User> query = session.createQuery(hql, User.class);
-            query.setParameter("userName", userName);
-            query.setParameter("password", password);
-            User user = query.uniqueResult();
-            return user != null;
+            query.setParameter("userName", user.getUserName());
+            query.setParameter("password", user.getPassword());
+            User foundUser = query.uniqueResult();
+            return foundUser != null;
         } catch (Exception e) {
             e.printStackTrace();
             return false;

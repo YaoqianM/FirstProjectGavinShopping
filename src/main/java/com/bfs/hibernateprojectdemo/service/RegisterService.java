@@ -17,31 +17,28 @@ public class RegisterService {
     @Autowired
     private SessionFactory sessionFactory;
     @Transactional
-    public boolean registerUser(String userName, String password, String Email) {
+    public User registerUser(User user) {
         try (Session session = sessionFactory.openSession()) {
             Transaction tx = session.beginTransaction();
-            String hql = "from User u where u.userName = :userName or u.Email = :Email";
+            String hql =
+                    "from User u where u.userName = :userName or u.Email = :Email";
             Query<User> query = session.createQuery(hql, User.class);
-            query.setParameter("userName", userName);
-            query.setParameter("Email", Email);
+            query.setParameter("userName", user.getUserName());
+            query.setParameter("Email", user.getEmail());
 
             User existingUser = query.uniqueResult();
 
             if (existingUser != null) {
                 tx.rollback();
-                return false;
+                return null;
             }
-            User newUser = new User();
-            newUser.setUserName(userName);
-            newUser.setEmail(Email);
-            newUser.setPassword(password);
 
-            session.persist(newUser);
+            session.persist(user);
             tx.commit();
-            return true;
+            return user;
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            return null;
         }
     }
 }

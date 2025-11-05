@@ -31,5 +31,9 @@ public class HibernateProperty {
     @Value("${database.hibernate.showsql}")
     private String showsql;
 
+    @Value("${database.hibernate.hbm2ddl:auto:update}")
+    private String hbm2ddlAuto;
+
+
 }
 

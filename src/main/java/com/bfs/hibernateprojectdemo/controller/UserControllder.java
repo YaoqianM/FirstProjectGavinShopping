@@ -1,29 +1,43 @@
 package com.bfs.hibernateprojectdemo.controller;
 
+import com.bfs.hibernateprojectdemo.domain.User;
+import com.bfs.hibernateprojectdemo.service.LoginService;
 import com.bfs.hibernateprojectdemo.service.RegisterService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 
 public class UserControllder {
 
-    @Autowired
-    private RegisterService registerService;
 
+    private final RegisterService registerService;
+    private final LoginService loginService;
+
+    @Autowired
+    public UserControllder(RegisterService registerService, LoginService loginService) {
+        this.registerService = registerService;
+        this.loginService = loginService;
+    }
     @PostMapping("/signup")
-    public String registerUser(@RequestParam String userName, @RequestParam String Email, @RequestParam String password) {
-        boolean success = registerService.registerUser(userName, Email, password);
-        if (success) {
-            return "Registration successful";
-        } else {
-            return "Username or Email already exists";
+    public ResponseEntity<User> registerUser(@RequestBody User user) {
+        if (user == null || user.getEmail() == null) {
+            return ResponseEntity.badRequest().build();
         }
+        User savedUser = registerService.registerUser(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
     @PostMapping("/login")
-    public String login(@RequestParam String userName,
-                        @RequestParam String password) {
+    public ResponseEntity<String> login(@RequestBody User user) {
         // login logic here
-        return "Login successful!";
+        boolean successful = loginService.authenticate(user);
+        if (!successful) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
+        return ResponseEntity.ok("Login successful");
     }
 }
