@@ -10,11 +10,10 @@ import javax.persistence.*;
 @Entity
 @Table(name = "users")
 public class User {
-
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter
     @Setter
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @JsonProperty("username")
     @Column(name = "username", unique = true)
