@@ -17,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/products")
+
 public class ProductController {
     private final SessionFactory sessionFactory;
 
@@ -25,18 +26,18 @@ public class ProductController {
     public ProductController(SessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/all")
     public List<Product> getAllProducts(@RequestParam(defaultValue = "false") boolean admin) {
         return homePageService.getAvailableProducts(admin);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{productId}")
     public Product getProductDetail(@PathVariable Long productId,
                                     @RequestParam(defaultValue = "false") boolean admin) {
         return homePageService.getProductDetail(productId, admin);
     }
-
+    @PreAuthorize("hasRole('USER')")
     @PatchMapping("/{productId}")
     public ResponseEntity<Product> updateProduct(@PathVariable Long productId, @RequestBody Product changes) {
         try (Session s = sessionFactory.openSession()) {
@@ -52,9 +53,8 @@ public class ProductController {
             return ResponseEntity.ok(p);
         }
     }
-
-    @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping
     public ResponseEntity<Product> createProduct(@RequestBody Product p) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -65,22 +65,22 @@ public class ProductController {
     }
     @Autowired
     private ProductAnalyticsService productAnalyticsService;
-
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/frequent/{n}")
     public List<Product> getTopFrequent(@PathVariable int n) {
         return productAnalyticsService.getTopFrequent(n);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/recent/{n}")
     public List<Product> getTopRecent(@PathVariable int n) {
         return productAnalyticsService.getTopRecent(n);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/profit/{n}")
     public List<Product> getTopProfit(@PathVariable int n) {
         return productAnalyticsService.getTopProfit(n);
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/popular/{n}")
     public List<Product> getTopPopular(@PathVariable int n) {
         return productAnalyticsService.getTopPopular(n);

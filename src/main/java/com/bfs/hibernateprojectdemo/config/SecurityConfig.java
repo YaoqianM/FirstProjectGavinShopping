@@ -28,27 +28,21 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf().disable()
-                .authenticationProvider(daoAuthProvider())
-                .authorizeRequests()
-                // public
-                .antMatchers("/signup", "/login").permitAll()
-                .antMatchers(HttpMethod.GET, "/products/**").permitAll()
-                .antMatchers("/stats/**").hasRole("ADMIN") // stats for admin only (per your note)
-                // user-only features (must be logged in as USER or ADMIN)
-                .antMatchers("/watchlist/**").hasAnyRole("USER","ADMIN")
-                .antMatchers(HttpMethod.POST, "/orders").hasAnyRole("USER","ADMIN")
-                .antMatchers(HttpMethod.GET, "/orders/**").hasAnyRole("USER","ADMIN")
-                .antMatchers(HttpMethod.PATCH, "/orders/**").hasRole("ADMIN") // admin manages order status
-                // admin mgmt
-                .antMatchers(HttpMethod.POST, "/products/**").hasRole("ADMIN")
-                .antMatchers(HttpMethod.PATCH, "/products/**").hasRole("ADMIN")
-                .antMatchers("/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-                .and()
-                .httpBasic(); // Postman → Authorization tab → Basic Auth
-
+        http.authorizeHttpRequests()
+                .antMatchers("/signup","/login").permitAll()
+                //.antMatchers(HttpMethod.POST,"/products/**", HttpMethod.PATCH,"/products/**").hasRole("ADMIN")
+                .antMatchers("/products/profit/**","/products/popular/**").hasRole("ADMIN")
+                .antMatchers("/products/frequent/**","/products/recent/**").hasRole("USER")
+                .antMatchers("/watchlist/**").hasRole("USER")
+                .antMatchers(HttpMethod.POST,"/orders/**").hasRole("USER")
+                .antMatchers(HttpMethod.PATCH,"/orders/**/complete").hasRole("ADMIN")
+                .antMatchers("/orders/**").hasAnyRole("ADMIN","USER")
+                .anyRequest().denyAll();
         return http.build();
+//        http.authorizeHttpRequests()
+//                .antMatchers("/signup", "/login").permitAll()
+//                .antMatchers("/product/**", "/order/**", "/watchlist/**").authenticated()
+//                .anyRequest().denyAll();
+//        return http.build();
     }
 }

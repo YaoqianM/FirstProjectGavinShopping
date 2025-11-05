@@ -11,6 +11,7 @@ import org.hibernate.query.Query;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,7 @@ public class OrderController {
     @Autowired
     private HomePageService homePageService;
 
+    @PreAuthorize("hasRole('USER')")
     @PostMapping
     public ResponseEntity<Void> placeOrder(@RequestBody OrderRequest req,
                                            @AuthenticationPrincipal User current) {
@@ -57,7 +59,7 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.CREATED).build();
         }
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders(@RequestParam(defaultValue = "0") int page) {
         try (Session s = sessionFactory.openSession()) {
@@ -67,13 +69,13 @@ public class OrderController {
             return ResponseEntity.ok(q.list());
         }
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{id}")
     public Order getOrderById(@PathVariable Long id) {
         // user/admin order detail
         return homePageService.getOrderDetail(id);
     }
-
+    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<?> cancelOrder(@PathVariable Long id) {
         try (Session s = sessionFactory.openSession()) {
@@ -109,7 +111,7 @@ public class OrderController {
             }
         }
     }
-
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{id}/complete")
     public String completeOrder(@PathVariable Long id) {
         // complete processing order
