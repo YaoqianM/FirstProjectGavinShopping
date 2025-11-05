@@ -1,5 +1,6 @@
 package com.bfs.hibernateprojectdemo.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,6 +18,7 @@ public class Order {
     // Getters and setters
     @Setter
     @Getter
+    @Column(name = "user_id")
     private Long userId;
     @Setter
     @Getter
@@ -31,4 +33,8 @@ public class Order {
     @Getter
     private LocalDateTime orderTime;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    @JsonIgnore // Don't serialize the full complex User object if you already have userId above
+    private User user;
 }

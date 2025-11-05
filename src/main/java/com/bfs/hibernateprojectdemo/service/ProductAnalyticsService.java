@@ -18,60 +18,101 @@ public class ProductAnalyticsService {
     // Top-N most frequently purchased (exclude canceled)
     public List<Product> getTopFrequent(int n) {
         try (Session session = sessionFactory.openSession()) {
-            String hql =
-                    "SELECT p FROM Product p " +
-                    "JOIN Order o ON p.productId = o.productId " +
+            // Get product IDs ordered by frequency
+            Query<Long> idQuery = session.createQuery(
+                    "SELECT o.productId FROM Order o " +
                     "WHERE o.status = 'Completed' " +
-                    "GROUP BY p.productId " +
-                    "ORDER BY COUNT(o.productId) DESC, p.productId ASC";
-            Query<Product> query = session.createQuery(hql, Product.class);
-            query.setMaxResults(n);
-            return query.list();
+                    "GROUP BY o.productId " +
+                    "ORDER BY COUNT(o.productId) DESC, o.productId ASC", Long.class);
+            idQuery.setMaxResults(n);
+            List<Long> productIds = idQuery.list();
+            
+            if (productIds.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            
+            // Fetch products by IDs
+            Query<Product> productQuery = session.createQuery(
+                    "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
+            productQuery.setParameterList("ids", productIds);
+            return productQuery.list();
         }
     }
 
     // Top-N most recent (exclude canceled)
     public List<Product> getTopRecent(int n) {
         try (Session session = sessionFactory.openSession()) {
-            String hql =
-                    "SELECT p FROM Product p " +
-                    "JOIN Order o ON p.productId = o.productId " +
+            // Get product IDs ordered by most recent order time
+            Query<Long> idQuery = session.createQuery(
+                    "SELECT o.productId FROM Order o " +
                     "WHERE o.status = 'Completed' " +
-                    "GROUP BY p.productId " +
-                    "ORDER BY MAX(o.orderTime) DESC, p.productId ASC";
-            Query<Product> query = session.createQuery(hql, Product.class);
-            query.setMaxResults(n);
-            return query.list();
+                    "GROUP BY o.productId " +
+                    "ORDER BY MAX(o.orderTime) DESC, o.productId ASC", Long.class);
+            idQuery.setMaxResults(n);
+            List<Long> productIds = idQuery.list();
+            
+            if (productIds.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            
+            // Fetch products by IDs
+            Query<Product> productQuery = session.createQuery(
+                    "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
+            productQuery.setParameterList("ids", productIds);
+            return productQuery.list();
         }
     }
 
     // Top-N most profitable (exclude canceled/ongoing)
     public List<Product> getTopProfit(int n) {
         try (Session session = sessionFactory.openSession()) {
-            String hql =
-                    "SELECT p FROM Product p " +
-                    "JOIN Order o ON p.productId = o.productId " +
+            // Use native SQL for complex profit calculation
+            String sql = 
+                    "SELECT p.product_id FROM products p " +
+                    "JOIN orders o ON p.product_id = o.product_id " +
                     "WHERE o.status = 'Completed' " +
-                    "GROUP BY p.productId " +
-                    "ORDER BY SUM((p.retailPrice - p.wholesalePrice) * o.quantity) DESC, p.productId ASC";
-            Query<Product> query = session.createQuery(hql, Product.class);
-            query.setMaxResults(n);
-            return query.list();
+                    "GROUP BY p.product_id " +
+                    "ORDER BY SUM((p.retail_price - p.wholesale_price) * o.quantity) DESC, p.product_id ASC " +
+                    "LIMIT ?";
+            
+            @SuppressWarnings("unchecked")
+            List<Long> productIds = session.createNativeQuery(sql)
+                    .setParameter(1, n)
+                    .getResultList();
+            
+            if (productIds.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            
+            // Fetch products by IDs
+            Query<Product> productQuery = session.createQuery(
+                    "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
+            productQuery.setParameterList("ids", productIds);
+            return productQuery.list();
         }
     }
 
     // Top-N by units sold (exclude canceled/ongoing)
     public List<Product> getTopPopular(int n) {
         try (Session session = sessionFactory.openSession()) {
-            String hql =
-                    "SELECT p FROM Product p " +
-                    "JOIN Order o ON p.productId = o.productId " +
+            // Get product IDs ordered by total quantity sold
+            Query<Long> idQuery = session.createQuery(
+                    "SELECT o.productId FROM Order o " +
                     "WHERE o.status = 'Completed' " +
-                    "GROUP BY p.productId " +
-                    "ORDER BY SUM(o.quantity) DESC, p.productId ASC";
-            Query<Product> query = session.createQuery(hql, Product.class);
-            query.setMaxResults(n);
-            return query.list();
+                    "GROUP BY o.productId " +
+                    "ORDER BY SUM(o.quantity) DESC, o.productId ASC", Long.class);
+            idQuery.setMaxResults(n);
+            List<Long> productIds = idQuery.list();
+            
+            if (productIds.isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            
+            // Fetch products by IDs
+            Query<Product> productQuery = session.createQuery(
+                    "FROM Product p WHERE p.productId IN :ids ORDER BY p.productId ASC", Product.class);
+            productQuery.setParameterList("ids", productIds);
+            return productQuery.list();
         }
     }
 }

@@ -1,11 +1,13 @@
 package com.bfs.hibernateprojectdemo.domain;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -35,6 +37,14 @@ public class User {
     @Getter
     @Column(nullable=false)
     private String role = "USER";
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private List<Order> orders;
+
+    // Note: Watchlist uses userId (Long) instead of User entity, so we don't use @OneToMany mapping here
+    // If you need to access watchlist items, query by userId directly
+
 
     public String getUserName() {
         return username;

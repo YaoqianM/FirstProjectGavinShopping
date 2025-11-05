@@ -1,7 +1,5 @@
 package com.bfs.hibernateprojectdemo.domain;
 
-import lombok.Setter;
-
 import javax.persistence.*;
 
 @Entity
@@ -12,16 +10,11 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long productId;
 
-    // Setters
-    @Setter
+    // Fields
     private String name;
-    @Setter
     private String description;
-    @Setter
     private double retailPrice;
-    @Setter
     private int quantity;
-    @Setter
     private double wholesalePrice;
 
     // Getters
@@ -44,6 +37,30 @@ public class Product {
     public int getQuantity() {
         return quantity;
     }
-    public double getWholesalePrice() { return wholesalePrice; }
+    
+    public double getWholesalePrice() { 
+        return wholesalePrice; 
+    }
+    
+    // Explicit setters (Lombok may not be generating them properly)
+    public void setRetailPrice(double retailPrice) {
+        this.retailPrice = retailPrice;
+    }
+    
+    public void setWholesalePrice(double wholesalePrice) {
+        this.wholesalePrice = wholesalePrice;
+    }
+    
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
 }
