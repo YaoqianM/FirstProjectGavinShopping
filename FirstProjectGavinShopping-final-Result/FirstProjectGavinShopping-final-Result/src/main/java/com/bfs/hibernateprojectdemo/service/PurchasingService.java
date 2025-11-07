@@ -31,9 +31,14 @@ public class PurchasingService {
                 throw new NotEnoughInventoryException("Not enough stock for product: " + product.getName());
             }
 
-            // Deduct stock
-            product.setQuantity(product.getQuantity() - quantity);
-            session.update(product);
+            // Deduct stock and delete if non-positive
+            int newQty = product.getQuantity() - quantity;
+            if (newQty <= 0) {
+                session.delete(product);
+            } else {
+                product.setQuantity(newQty);
+                session.update(product);
+            }
 
             // Create order
             Order order = new Order();
@@ -42,6 +47,9 @@ public class PurchasingService {
             order.setQuantity(quantity);
             order.setStatus("Processing");
             order.setOrderTime(LocalDateTime.now());
+            // Snapshot product name and description at purchase time
+            order.setProductNameAtPurchase(product.getName());
+            order.setProductDescriptionAtPurchase(product.getDescription());
 
             session.persist(order);
             tx.commit();

@@ -1,0 +1,377 @@
+Project Knowledge Pack
+Version: 1.0.0
+Maintainer: Your Name
+Last Updated: YYYY-MM-DD
+
+Index
+- Overview
+- Architecture
+- Packages & Responsibilities
+- Hibernate & SessionFactory
+- Factory Pattern
+- Security & Injection Prevention
+- Criteria API Patterns
+- Transactions & ACID
+- Error Handling
+- UML Diagrams (ASCII)
+- Usage Examples
+- Configuration
+- Deployment Requirements
+- Security Considerations
+- Performance & Scaling
+- FAQ (100 Q&A)
+- Update Procedures
+- Glossary
+
+Overview
+- This pack documents the class hierarchy, design principles, and operational details of the Online Shopping App.
+- Technologies: Spring Boot, Hibernate, JWT, JPA Criteria, Maven, Java 17.
+
+Architecture
+- Layered:
+  - Domain: entities (User, Product, Order, Watchlist, AuditLog)
+  - DAO: shared retrieval and persistence helpers
+  - Service: business logic (RegisterService, LoginService, PurchasingService, WatchlistService, AuditLogService)
+  - Web: controllers (ProductController, OrderController, UserController, WatchlistController)
+  - Util: helpers (PatchUtils)
+- Entry-point: ProjectCore (facade) → HibernateProjectDemoApplication (Spring Boot)
+
+Packages & Responsibilities
+- com.project.domain: central models; mirrors existing domain types for architectural clarity
+- com.project.dao: DAO helpers, action factories for DB interactions
+- com.project.service: orchestration logic; transaction boundaries and validation
+- com.project.web: controllers and filters; DTO mapping
+- com.project.util: common utilities (patching, formatting, logging)
+
+Hibernate & SessionFactory
+- SessionFactory managed in Spring via HibernateConfig.
+- Sessions opened in services; transactions wrap business operations.
+- Second-level cache (config example via Ehcache) and lazy loading preferences (explicit transaction scope).
+- Fetch strategies tuned via batch size, default fetch size.
+
+Factory Pattern
+- Abstract ActionFactory<TInput, TOutput> defines validation and execution contract.
+- Concrete factories (e.g., UserRegistrationActionFactory) encapsulate Criteria queries and persistence routines.
+- DI: factories injected into services to execute cohesive actions.
+
+Security & Injection Prevention
+- JWT secures protected endpoints; public product browsing allowed.
+- Input validation before DB operations; errors map to proper HTTP responses.
+- Parameterized queries and Criteria API prevent SQL injection.
+- Prepared statements used under the hood by Hibernate with named parameters.
+
+Criteria API Patterns
+- Duplicate checks: username OR email equality.
+- Dynamic conditions: optional filters by category/price/in-stock flags.
+- Pagination via Criteria with order by and setFirstResult/setMaxResults.
+
+Transactions & ACID
+- Begin/commit/rollback at service layer.
+- Isolation levels configurable in DB; default READ_COMMITTED is sufficient for most operations.
+- Rollback strategies: any exception triggers rollback; partial failures are not committed.
+
+Error Handling
+- Custom exceptions (e.g., NotEnoughInventoryException).
+- Logging at service boundaries; include correlation IDs if needed.
+- Recovery: retry on transient failures; compensate by restoring inventory on failed purchase.
+
+UML Diagrams (ASCII)
+
+Class Diagram (selected)
++------------------+         +--------------------+
+| RegisterService  | uses -> | UserRegistrationAF |
++------------------+         +--------------------+
+| +registerUser()  |         | +execute()         |
+| +initAdminUser() |         | +validate()        |
++------------------+         +--------------------+
+
+Sequence: User Authentication
+User -> UserController: POST /login
+UserController -> LoginService: authenticate()
+LoginService -> DbUserDetailsService: loadUserByUsername()
+DbUserDetailsService -> Session: query user by username (Criteria/HQL with parameters)
+LoginService -> JwtService: createToken()
+UserController -> User: 200 OK { token }
+
+Sequence: Data Persistence (Registration)
+User -> UserController: POST /signup
+UserController -> RegisterService: registerUser()
+RegisterService -> Session: beginTransaction()
+RegisterService -> Criteria: find dup (username OR email)
+RegisterService -> Session: persist(user)
+RegisterService -> Transaction: commit()
+UserController -> User: 201 Created
+
+Sequence: Transaction Processing (Purchase)
+User -> OrderController: POST /order
+OrderController -> PurchasingService: placeOrder()
+PurchasingService -> Session: beginTransaction()
+PurchasingService -> Product: check inventory
+PurchasingService -> Order: persist
+PurchasingService -> AuditLog: persist
+PurchasingService -> Transaction: commit()
+OrderController -> User: 200 OK
+
+Usage Examples
+- Register:
+  POST /signup
+  Body: {"username":"alice","email":"alice@example.com","password":"Secret123"}
+- Login:
+  POST /login
+  Body: {"username":"alice","password":"Secret123"}
+  Response: {"token":"<JWT>"}
+- Watchlist:
+  POST /watchlist/product/{id}
+  DELETE /watchlist/product/{id}
+  GET /watchlist/products/all (requires token)
+- Products:
+  GET /products (public)
+  PATCH /products/{id} with PatchUtils
+
+Configuration
+- application.properties binds into HibernateProperty:
+  database.hibernate.driver, url, username, password
+  database.hibernate.dialect, showsql, hbm2ddl
+- Example cache config (HibernateConfig):
+  hibernate.cache.use_second_level_cache=true
+  hibernate.cache.use_query_cache=true
+  hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.EhCacheRegionFactory
+
+Deployment Requirements
+- Java 17, Maven 3.8+, DB (MySQL recommended)
+- Build: mvn -DskipTests package
+- Run: java -jar target\hibernate-project-demo-0.0.1-SNAPSHOT.jar
+- Optional: server.port=8081
+
+Security Considerations
+- Threats: SQL injection, broken auth, insecure JWT storage, CSRF on stateful endpoints.
+- Mitigations: Criteria API, prepared queries, strong password hashing, short-lived tokens.
+- Audit: AuditLog entries for purchases and admin actions.
+
+Performance & Scaling
+- Reduce N+1 via batch fetch and proper joins.
+- Cache frequently read entities; consider query cache for stable queries.
+- Scale horizontally by running multiple instances behind a load balancer.
+- Use DB connection pool tuning.
+
+FAQ (100 Q&A)
+
+Architecture (20)
+1) Why layered architecture? 
+   Answer: Separation of concerns improves testability and scaling. Ref: SecurityConfig, RegisterService.
+2) Where is the entry point? 
+   Answer: ProjectCore facade calling HibernateProjectDemoApplication. Ref: ProjectCore.java.
+3) Why a factory pattern?
+   Answer: Encapsulates cohesive actions and validation. Ref: ActionFactory.java.
+4) How are cross-cutting concerns handled?
+   Answer: At services and filters (transactions, logging). Ref: JwtAuthFilter, services.
+5) Why SessionFactory over EntityManager?
+   Answer: Project chose Hibernate native API for explicit control. Ref: HibernateConfig.
+6) How do services interact with DAO?
+   Answer: Services open sessions, DAOs encapsulate persistence. Ref: AbstractHibernateDao.
+7) Where is configuration centralized?
+   Answer: HibernateProperty and application.properties. Ref: config package.
+8) How is modularity enforced?
+   Answer: Package boundaries and service-only persistence logic. Ref: service package.
+9) How do controllers map DTOs?
+   Answer: Request bodies to domain; responses via DataResponse. Ref: dto package.
+10) What is the role of util?
+    Answer: Common helpers like PatchUtils for safe partial updates. Ref: util.
+11) How do we manage startup tasks?
+    Answer: RegisterService.initAdminUser via CommandLineRunner. Ref: RegisterService.
+12) How to add new features?
+    Answer: Add controller endpoint, service method, and Criteria queries. Ref: ProductController.
+13) Where does caching fit?
+    Answer: Configured at HibernateConfig; entity/query cache. Ref: HibernateConfig.
+14) How is lazy loading managed?
+    Answer: Prefer explicit transactions for proxies. Ref: HibernateConfig.
+15) What is the audit strategy?
+    Answer: Persist AuditLog entries for critical actions. Ref: AuditLogService.
+16) How does JWT integrate?
+    Answer: Filter extracts token; SecurityConfig guards endpoints. Ref: JwtAuthFilter.
+17) How is error handling unified?
+    Answer: Exceptions map to HTTP responses; rollback on failure. Ref: services.
+18) How do we structure testing?
+    Answer: Controller and util tests; concurrency test for patches. Ref: test package.
+19) Where are domain constraints defined?
+    Answer: Entity fields and service validations. Ref: domain.
+20) How are environment differences handled?
+    Answer: application.properties and injected HibernateProperty. Ref: config.
+
+Implementation (30)
+21) How is password hashing done?
+    Answer: Spring PasswordEncoder; bcrypt. Ref: RegisterService.
+22) How is duplicate registration prevented?
+    Answer: Criteria OR (username/email). Ref: RegisterService.
+23) How to query a user by username?
+    Answer: Criteria equal root.get("username"). Ref: LoginService/DbUserDetailsService.
+24) How to build dynamic product filters?
+    Answer: Criteria with optional predicates appended. Ref: ProductController (pattern).
+25) How to persist an order?
+    Answer: Begin tx, set relations, persist Order, commit. Ref: PurchasingService.
+26) How to handle insufficient inventory?
+    Answer: Throw NotEnoughInventoryException; rollback. Ref: exception.
+27) How to patch a product?
+    Answer: Use PatchUtils to apply only provided fields. Ref: ProductController.
+28) How to log actions?
+    Answer: Persist AuditLog entries with context. Ref: AuditLogService.
+29) How to handle watchlist add/remove?
+    Answer: Query product/user, persist/delete Watchlist. Ref: WatchlistService.
+30) How to fetch in-stock watchlist?
+    Answer: HQL/Criteria join and inventory > 0. Ref: WatchlistService.
+31) How to enable second-level caching?
+    Answer: Set Hibernate cache properties; add provider. Ref: HibernateConfig.
+32) How to batch fetch?
+    Answer: hibernate.default_batch_fetch_size=16. Ref: HibernateConfig.
+33) How to set JDBC fetch size?
+    Answer: hibernate.jdbc.fetch_size=50. Ref: HibernateConfig.
+34) How does JWT token creation work?
+    Answer: JwtService builds claims and signs. Ref: JwtService.
+35) How to configure public endpoints?
+    Answer: SecurityConfig antMatchers for GET /products/**. Ref: SecurityConfig.
+36) How to wire a factory into a service?
+    Answer: Inject UserRegistrationActionFactory; call execute(session, user). Ref: service.factory.
+37) How to rollback on business errors?
+    Answer: Catch and rollback transaction. Ref: services.
+38) How to tune isolation level?
+    Answer: DB-level config; Spring @Transactional(readOnly/isolation). Ref: services.
+39) How to validate input?
+    Answer: Pre-checks in factory/service before DB. Ref: service.factory.
+40) How to structure DTOs?
+    Answer: Separate DTO package; map in controllers. Ref: dto.
+41) How to ensure ACID?
+    Answer: Single session per unit of work; commit atomically. Ref: services.
+42) How to find performance hotspots?
+    Answer: SQL logs and Hibernate statistics. Ref: config.
+43) How to reduce N+1?
+    Answer: batch fetch and fetch joins. Ref: HibernateConfig.
+44) How to seed admin?
+    Answer: initAdminUser on startup; bcrypt "123". Ref: RegisterService.
+45) How to persist audit?
+    Answer: After main action; include metadata. Ref: AuditLogService.
+46) How to handle concurrent updates?
+    Answer: PatchUtils; optimistic locking if enabled. Ref: ProductPatchConcurrencyTest.
+47) How to externalize config?
+    Answer: application.properties binding via HibernateProperty. Ref: config.
+48) How to organize util code?
+    Answer: Pure helpers; no DB access. Ref: util.
+49) How to add new endpoint?
+    Answer: Controller method + service + Criteria query. Ref: controller/service.
+
+Troubleshooting (20)
+50) Admin login fails?
+    Answer: Seeder didn’t run; fix startup port. Ref: RegisterService.
+51) Port conflict?
+    Answer: Change server.port or free 8080. Ref: application.properties.
+52) DB schema not created?
+    Answer: Check hbm2ddl; correct dialect/URL. Ref: HibernateProperty.
+53) SQL injection suspected?
+    Answer: Replace string HQL with Criteria. Ref: services.
+54) LazyInitializationException?
+    Answer: Use transactions around lazy access. Ref: HibernateConfig.
+55) Stale object exception?
+    Answer: Enable version/optimistic locking or refresh. Ref: domain.
+56) Token invalid?
+    Answer: Check JwtService secret and expiration. Ref: JwtService.
+57) 403 on public endpoint?
+    Answer: SecurityConfig rules; permit GET /products/**. Ref: SecurityConfig.
+58) Duplicate user persists?
+    Answer: Criteria OR logic mismatch; check field names. Ref: RegisterService.
+59) Build fails on Java version?
+    Answer: Set compiler source/target=17. Ref: pom.xml.
+60) Maven wrapper fails?
+    Answer: Use system Maven (`mvn`). Ref: mvnw.cmd/mvn.
+61) DB connection error?
+    Answer: Verify credentials and driver in properties. Ref: application.properties.
+62) Watchlist fetch fails?
+    Answer: Field mismatch in HQL; fix to productId. Ref: WatchlistService.
+63) Order transaction partial commit?
+    Answer: Ensure single tx; rollback on errors. Ref: PurchasingService.
+64) Missing cache provider?
+    Answer: Add Ehcache/Caffeine dependency. Ref: HibernateConfig.
+65) Performance slow queries?
+    Answer: Enable SQL logging; add indexes. Ref: config/DB.
+66) JWT not added to requests?
+    Answer: Add Authorization header Bearer token. Ref: JwtAuthFilter.
+67) Email duplication not caught?
+    Answer: Check entity field is "Email". Ref: User entity.
+68) Tests failing on concurrency?
+    Answer: Review PatchUtils and locking. Ref: ProductPatchConcurrencyTest.
+69) Session closed?
+    Answer: Use try-with-resources and tx mgmt. Ref: services.
+
+Security (15)
+70) What prevents SQL injection?
+    Answer: Parameter binding & Criteria API. Ref: RegisterService.
+71) How are passwords stored?
+    Answer: Bcrypt via PasswordEncoder. Ref: RegisterService.
+72) How to validate inputs?
+    Answer: Factory/service checks before DB. Ref: service.factory.
+73) Are tokens secure?
+    Answer: Signed JWT, short expiry; HTTPS recommended. Ref: JwtService.
+74) How are roles enforced?
+    Answer: @PreAuthorize and SecurityConfig rules. Ref: WatchlistController.
+75) How to audit admin actions?
+    Answer: AuditLog entries and review. Ref: AuditLogService.
+76) How to protect patch endpoints?
+    Answer: Auth required and field-level patching. Ref: ProductController.
+77) How to sanitize output?
+    Answer: Avoid sensitive fields in responses. Ref: DTOs.
+78) How to handle brute force?
+    Answer: Rate limiting and lockout policies (recommended). Ref: SecurityConfig.
+79) How to prevent CSRF?
+    Answer: Stateless JWT; CSRF off for APIs. Ref: SecurityConfig.
+80) How to store secrets?
+    Answer: Externalized properties; env vars. Ref: application.properties.
+81) How to secure DB credentials?
+    Answer: Use vault/secrets manager (recommended). Ref: config.
+82) How to verify token?
+    Answer: JwtAuthFilter validates signature. Ref: JwtAuthFilter.
+83) How to restrict admin endpoints?
+    Answer: Roles in SecurityConfig and controller annotations. Ref: SecurityConfig.
+84) How to log security events?
+    Answer: Central logging of login failures. Ref: LoginService.
+
+Performance (15)
+85) How to batch operations?
+    Answer: Use batch fetch and JDBC batch. Ref: HibernateConfig.
+86) How to cache hot data?
+    Answer: 2nd-level cache and query cache. Ref: HibernateConfig.
+87) How to tune connection pool?
+    Answer: Configure datasource pool sizes. Ref: application.properties.
+88) How to reduce payload size?
+    Answer: Paginate and partial responses. Ref: controllers.
+89) How to optimize reads?
+    Answer: Indexes, projections, fetch strategies. Ref: domain/HibernateConfig.
+90) How to optimize writes?
+    Answer: Transaction boundaries and batching. Ref: services.
+91) How to profile queries?
+    Answer: Enable SQL logs, Hibernate stats. Ref: config.
+92) How to scale horizontally?
+    Answer: Stateless JWT; load balancer. Ref: deployment.
+93) How to minimize N+1?
+    Answer: Fetch joins and batch size. Ref: HibernateConfig.
+94) How to handle contention?
+    Answer: Optimistic locking/version column. Ref: domain.
+95) How to assess throughput?
+    Answer: Benchmark with realistic data. Ref: performance suite (recommended).
+96) How to tune JVM?
+    Answer: Heap sizes, GC type (G1). Ref: deployment.
+97) How to handle spikes?
+    Answer: Autoscaling and backpressure. Ref: deployment.
+98) How to optimize serialization?
+    Answer: Use JSON views/DTOs. Ref: DTOs.
+99) How to use async?
+    Answer: Offload analytics to async jobs. Ref: ProductAnalyticsService.
+100) How to detect regressions?
+    Answer: Baseline benchmarks and alerts. Ref: CI/CD (recommended).
+
+Update Procedures
+- Increment version in this pack upon changes.
+- Keep JavaDoc and package documentation consistent.
+- Review security and performance sections after major updates.
+
+Glossary
+- ACID, Criteria API, JWT, DAO, DTO, SessionFactory, Transaction.
+
+End of Project Knowledge Pack

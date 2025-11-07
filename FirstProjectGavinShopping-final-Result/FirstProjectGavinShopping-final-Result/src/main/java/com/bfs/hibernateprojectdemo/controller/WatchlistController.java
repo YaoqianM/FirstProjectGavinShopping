@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.util.List;
 
+import com.bfs.hibernateprojectdemo.dto.MessageResponse;
+
 @RestController
 @RequestMapping("/watchlist")
 @PreAuthorize("hasRole('USER')") // Class-level auth is fine
@@ -29,7 +31,7 @@ public class WatchlistController {
     }
 
     @GetMapping("/products/all")
-    public ResponseEntity<List<Product>> getWatchlist(Principal principal) {
+    public ResponseEntity<?> getWatchlist(Principal principal) {
         // 1. Robust Principal Check
         if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
@@ -47,7 +49,21 @@ public class WatchlistController {
                             " select w.productId from Watchlist w where w.userId = :uid" +
                             " ) and p.quantity > 0", Product.class);
             q.setParameter("uid", dbUser.getId());
-            return ResponseEntity.ok(q.list());
+            List<Product> products = q.list();
+            if (products == null || products.isEmpty()) {
+                return ResponseEntity.ok(new com.bfs.hibernateprojectdemo.dto.MessageResponse("Your watchlist is empty"));
+            }
+            // Map to user-safe DTOs
+            java.util.List<com.bfs.hibernateprojectdemo.dto.UserProductDto> dtos = new java.util.ArrayList<>();
+            for (Product p : products) {
+                com.bfs.hibernateprojectdemo.dto.UserProductDto dto = new com.bfs.hibernateprojectdemo.dto.UserProductDto();
+                dto.setProductId(p.getProductId());
+                dto.setName(p.getName());
+                dto.setDescription(p.getDescription());
+                dto.setRetailPrice(p.getRetailPrice());
+                dtos.add(dto);
+            }
+            return ResponseEntity.ok(dtos);
         } catch (Exception e) {
             e.printStackTrace(); // Helpful for debugging 500s in console
             return ResponseEntity.internalServerError().build();
@@ -55,9 +71,10 @@ public class WatchlistController {
     }
 
     @PostMapping("/product/{id}")
-    public ResponseEntity<Void> addToWatchlist(@PathVariable("id") Long productId,
+    public ResponseEntity<?> addToWatchlist(@PathVariable("id") Long productId,
                                                Principal principal) {
-        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new MessageResponse("Unauthorized: please log in"));
 
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -68,13 +85,15 @@ public class WatchlistController {
 
                 if (dbUser == null) {
                     tx.rollback();
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(new MessageResponse("Unauthorized: user not found"));
                 }
 
                 Product product = s.get(Product.class, productId);
                 if (product == null) {
                     tx.rollback();
-                    return ResponseEntity.notFound().build();
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(new MessageResponse("Product not found"));
                 }
 
                 Watchlist existing = s.createQuery(
@@ -88,21 +107,27 @@ public class WatchlistController {
                     w.setUserId(dbUser.getId());
                     w.setProductId(productId);
                     s.save(w);
+                    tx.commit();
+                    return ResponseEntity.status(HttpStatus.CREATED)
+                            .body(new MessageResponse("Added to watchlist successfully"));
                 }
                 tx.commit();
-                return ResponseEntity.status(HttpStatus.CREATED).build();
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new MessageResponse("Item already in watchlist"));
             } catch (Exception e) {
                 if (tx.isActive()) tx.rollback();
                 e.printStackTrace();
-                return ResponseEntity.internalServerError().build();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new MessageResponse("Failed to add to watchlist"));
             }
         }
     }
 
     @DeleteMapping("/product/{id}")
-    public ResponseEntity<Void> removeFromWatchlist(@PathVariable("id") Long productId,
+    public ResponseEntity<?> removeFromWatchlist(@PathVariable("id") Long productId,
                                                     Principal principal) {
-        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (principal == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new MessageResponse("Unauthorized: please log in"));
 
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -113,7 +138,8 @@ public class WatchlistController {
 
                 if (dbUser == null) {
                     tx.rollback();
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(new MessageResponse("Unauthorized: user not found"));
                 }
 
                 int affected = s.createQuery("delete from Watchlist where userId = :uid and productId = :pid")
@@ -122,12 +148,17 @@ public class WatchlistController {
                         .executeUpdate();
 
                 tx.commit();
-                // Returns 200 if deleted, 204 if nothing was there to delete (idempotent)
-                return affected > 0 ? ResponseEntity.ok().build() : ResponseEntity.noContent().build();
+                if (affected > 0) {
+                    return ResponseEntity.ok(new MessageResponse("Successfully deleted from watchlist"));
+                } else {
+                    return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                            .body(new MessageResponse("Item not in watchlist"));
+                }
             } catch (Exception e) {
                 if (tx.isActive()) tx.rollback();
                 e.printStackTrace();
-                return ResponseEntity.internalServerError().build();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new MessageResponse("Failed to remove from watchlist"));
             }
         }
     }

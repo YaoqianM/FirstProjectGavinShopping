@@ -44,6 +44,17 @@ public class Order {
     @Column(name = "wholesale_price_at_purchase")
     private double wholesalePriceAtPurchase;
     
+    // Snapshot product name and description at time of purchase
+    @Setter
+    @Getter
+    @Column(name = "product_name_at_purchase")
+    private String productNameAtPurchase;
+
+    @Setter
+    @Getter
+    @Column(name = "product_description_at_purchase", length = 2048)
+    private String productDescriptionAtPurchase;
+    
     // Explicit getters and setters (Lombok may not be generating them properly)
     public Long getId() {
         return id;

@@ -31,7 +31,7 @@ public class RegisterService {
             CriteriaBuilder cb = session.getCriteriaBuilder();
             CriteriaQuery<User> cq = cb.createQuery(User.class);
             Root<User> root = cq.from(User.class);
-            Predicate usernameEquals = cb.equal(root.get("username"), user.getUserName());
+            Predicate usernameEquals = cb.equal(root.get("username"), user.getUsername());
             Predicate emailEquals = cb.equal(root.get("Email"), user.getEmail());
             cq.select(root).where(cb.or(usernameEquals, emailEquals));
             Query<User> dupQuery = session.createQuery(cq);
@@ -64,7 +64,7 @@ public class RegisterService {
 
             if (existingAdmin == null) {
                 User admin = new User();
-                admin.setUserName("admin");
+                admin.setUsername("admin");
                 admin.setEmail("admin@shop.com");
                 admin.setPassword(passwordEncoder.encode("123"));
                 admin.setRole("ADMIN");

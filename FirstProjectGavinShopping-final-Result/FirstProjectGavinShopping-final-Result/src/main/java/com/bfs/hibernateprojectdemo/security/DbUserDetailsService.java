@@ -24,7 +24,7 @@ public class DbUserDetailsService implements UserDetailsService {
             if (u == null) throw new UsernameNotFoundException("User not found");
             GrantedAuthority auth = new SimpleGrantedAuthority("ROLE_" + u.getRole());
             return org.springframework.security.core.userdetails.User
-                    .withUsername(u.getUserName())
+                    .withUsername(u.getUsername())
                     .password(u.getPassword())
                     .authorities(Collections.singleton(auth))
                     .build();

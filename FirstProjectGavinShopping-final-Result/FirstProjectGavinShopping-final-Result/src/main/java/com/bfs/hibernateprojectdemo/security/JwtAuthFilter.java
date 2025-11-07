@@ -24,6 +24,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     private DbUserDetailsService userDetailsService;
 
+    @Autowired
+    private ActiveUserRegistry activeUserRegistry;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -42,6 +45,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
             if (jwtService.validateToken(token, userDetails)) {
+                // Enforce single active user: reject tokens for other usernames
+                String active = activeUserRegistry.getActiveUsername();
+                if (active != null && !active.equals(username)) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Another user is currently logged in; please log in again.\"}");
+                    return;
+                }
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails, null, userDetails.getAuthorities());

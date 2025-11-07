@@ -1,6 +1,7 @@
 package com.bfs.hibernateprojectdemo.controller;
 
 import com.bfs.hibernateprojectdemo.domain.Product;
+import com.bfs.hibernateprojectdemo.dto.UserProductDto;
 import com.bfs.hibernateprojectdemo.service.HomePageService;
 import com.bfs.hibernateprojectdemo.service.ProductAnalyticsService;
 import com.bfs.hibernateprojectdemo.util.PatchUtils;
@@ -44,33 +45,61 @@ public class ProductController {
 
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/all")
-    public ResponseEntity<List<Product>> getAllProducts(@RequestParam(defaultValue = "false") boolean admin) {
+    public ResponseEntity<?> getAllProducts(@RequestParam(defaultValue = "false") boolean admin) {
         try {
-            return ResponseEntity.ok(homePageService.getAvailableProducts(admin));
+            List<Product> products = homePageService.getAvailableProducts(admin);
+            if (products == null || products.isEmpty()) {
+                return ResponseEntity.ok(new com.bfs.hibernateprojectdemo.dto.MessageResponse("No products available"));
+            }
+            if (admin) {
+                return ResponseEntity.ok(products);
+            } else {
+                // Map to user-safe DTO (no wholesale, no version, no quantity)
+                List<UserProductDto> dtos = new java.util.ArrayList<>();
+                for (Product p : products) {
+                    UserProductDto dto = new UserProductDto();
+                    dto.setProductId(p.getProductId());
+                    dto.setName(p.getName());
+                    dto.setDescription(p.getDescription());
+                    dto.setRetailPrice(p.getRetailPrice());
+                    dtos.add(dto);
+                }
+                return ResponseEntity.ok(dtos);
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null);
+                    .body("Error fetching products");
         }
     }
 
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/{productId}")
-    public ResponseEntity<Product> getProductDetail(@PathVariable Long productId,
+    public ResponseEntity<?> getProductDetail(@PathVariable Long productId,
                                     @RequestParam(defaultValue = "false") boolean admin) {
         try {
             Product product = homePageService.getProductDetail(productId, admin);
             if (product == null) {
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new com.bfs.hibernateprojectdemo.dto.MessageResponse("Product not found"));
             }
             String etag = String.format("W/\"product-%d-v%d\"", product.getProductId(),
                     product.getVersion() == null ? 0 : product.getVersion());
-            return ResponseEntity.ok().eTag(etag).body(product);
+            if (admin) {
+                return ResponseEntity.ok().eTag(etag).body(product);
+            } else {
+                UserProductDto dto = new UserProductDto();
+                dto.setProductId(product.getProductId());
+                dto.setName(product.getName());
+                dto.setDescription(product.getDescription());
+                dto.setRetailPrice(product.getRetailPrice());
+                return ResponseEntity.ok().eTag(etag).body(dto);
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping(path = "/{productId}", consumes = {"application/json-patch+json", "application/merge-patch+json", "application/json"})
     public ResponseEntity<?> updateProduct(@PathVariable Long productId,
                                            @RequestBody String patchBody,
@@ -82,10 +111,12 @@ public class ProductController {
             Product p = s.get(Product.class, productId);
 
             if (p == null) {
-                return ResponseEntity.notFound().build();
+                tx.rollback();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new com.bfs.hibernateprojectdemo.dto.MessageResponse("Product not found"));
             }
 
-            // Concurrency control: If-Match against version ETag
+            // Concurrency control: If-Match against version ETag ;; Entity Tag;
             if (ifMatch != null && !ifMatch.isEmpty()) {
                 String currentEtag = String.format("W/\"product-%d-v%d\"", p.getProductId(),
                         p.getVersion() == null ? 0 : p.getVersion());
@@ -134,12 +165,48 @@ public class ProductController {
             first = appendChange(csb, first, "quantity", p.getQuantity(), patched.getQuantity());
             csb.append("}");
 
-            // Persist changes
+            // If name changed to an existing product's name, merge-by-name
+            if (patched.getName() != null && !patched.getName().equals(p.getName())) {
+                Product sameName = s.createQuery(
+                                "from Product x where x.name = :nm and x.productId <> :pid",
+                                Product.class)
+                        .setParameter("nm", patched.getName())
+                        .setParameter("pid", p.getProductId())
+                        .uniqueResult();
+                if (sameName != null) {
+                    // Merge fields: update description and prices from patched, accumulate quantity
+                    int mergedQty = sameName.getQuantity() + patched.getQuantity();
+                    sameName.setDescription(patched.getDescription());
+                    sameName.setRetailPrice(patched.getRetailPrice());
+                    sameName.setWholesalePrice(patched.getWholesalePrice());
+                    sameName.setQuantity(mergedQty);
+                    if (sameName.getQuantity() <= 0) {
+                        s.delete(sameName);
+                    } else {
+                        s.update(sameName);
+                    }
+                    // Delete original product as it merged into sameName
+                    s.delete(p);
+                    tx.commit();
+                    auditLogService.log("Product", sameName.getProductId(), null, csb.toString(),
+                            p.getVersion() == null ? null : p.getVersion(),
+                            sameName.getVersion() == null ? null : sameName.getVersion());
+                    return ResponseEntity.ok(sameName);
+                }
+            }
+
+            // Persist changes when not merging
             p.setName(patched.getName());
             p.setDescription(patched.getDescription());
             p.setRetailPrice(patched.getRetailPrice());
             p.setWholesalePrice(patched.getWholesalePrice());
             p.setQuantity(patched.getQuantity());
+            // If quantity became non-positive, remove product entirely to enforce inventory rule
+            if (p.getQuantity() <= 0) {
+                s.delete(p);
+                tx.commit();
+                return ResponseEntity.ok("Product removed due to non-positive quantity");
+            }
 
             s.update(p);
             tx.commit();
@@ -202,9 +269,45 @@ public class ProductController {
     public ResponseEntity<?> createProduct(@RequestBody Product p) {
         try (Session s = sessionFactory.openSession()) {
             Transaction tx = s.beginTransaction();
-            s.save(p);
-            tx.commit();
-            return ResponseEntity.status(HttpStatus.CREATED).body(p);
+            try {
+                // Reject creation when initial quantity is <= 0
+                if (p.getQuantity() <= 0) {
+                    tx.rollback();
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Quantity must be greater than 0");
+                }
+                // Check for existing product by name ONLY (merge if same name)
+                Product existing = s.createQuery(
+                        "from Product p where p.name = :name",
+                        Product.class)
+                        .setParameter("name", p.getName())
+                        .uniqueResult();
+
+                if (existing != null) {
+                    // Merge fields: update description and prices, accumulate quantity
+                    int newQty = existing.getQuantity() + p.getQuantity();
+                    existing.setDescription(p.getDescription());
+                    existing.setRetailPrice(p.getRetailPrice());
+                    existing.setWholesalePrice(p.getWholesalePrice());
+                    existing.setQuantity(newQty);
+                    if (existing.getQuantity() <= 0) {
+                        // Remove product completely when resulting quantity is non-positive
+                        s.delete(existing);
+                        tx.commit();
+                        return ResponseEntity.ok("Product removed due to non-positive quantity");
+                    }
+                    s.update(existing);
+                    tx.commit();
+                    return ResponseEntity.ok(existing);
+                } else {
+                    s.save(p);
+                    tx.commit();
+                    return ResponseEntity.status(HttpStatus.CREATED).body(p);
+                }
+            } catch (Exception ex) {
+                if (tx.isActive()) tx.rollback();
+                throw ex;
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error creating product: " + e.getMessage());

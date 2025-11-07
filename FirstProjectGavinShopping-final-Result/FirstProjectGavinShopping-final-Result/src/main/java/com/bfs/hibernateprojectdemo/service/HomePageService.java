@@ -28,9 +28,7 @@ public class HomePageService {
     public Product getProductDetail(Long productId, boolean isAdmin) {
         try (Session session = sessionFactory.openSession()) {
             Product product = session.get(Product.class, productId);
-            if (product != null && !isAdmin) {
-                product.setQuantity(0); // hide quantity for user
-            }
+            // Do not mutate entity for presentation
             return product;
         }
     }
